@@ -15,9 +15,9 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        // use: {
-        //   loader: "babel-loader"
-        // }
+        use: {
+          loader: "babel-loader"
+        }
       },
       {
         test: /\.scss$/,
@@ -44,10 +44,7 @@ module.exports = {
       template: './src/index.html',
       filename: 'index.html'
     }),
-    new WebpackMd5Hash(),
-    new CopyWebpackPlugin([
-      {from:'src/vendor',to:'vendor'},
-      {from:'src/assets',to:'assets'}
-    ]), 
+    new WebpackMd5Hash()
+    
   ]
 };
