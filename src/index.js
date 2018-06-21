@@ -1,16 +1,20 @@
-import React, {Component} from 'react';
+import React, {Component, PureComponent} from 'react';
 import ReactDOM from 'react-dom';
 import './scss/main.scss';
 
-const Button = props => {
-  return (
-    <button id={props.id} value={props.label} className="button" onClick={props.handleClick}>{props.label}</button>
-  )
+class Button extends PureComponent {
+  render() {
+    return (
+      <button id={this.props.id} className="button" onClick={this.props.handleClick}>{this.props.label}</button>
+    )
+  }
 }
 
 const Display = props => {
+  const alert = props.isAlertOn ? 'alert' : '';
+  const classes = `${alert} display`;
   return (
-    <div className="display"><span>{props.output}</span></div>
+    <div className={classes}><span id="display">{props.output}</span></div>
   )
 }
 
@@ -18,11 +22,12 @@ class Calculator extends Component {
 
   state = {
     output: '0',
+    alert: false,
   }
 
   expression = '0';
 
-  specsign = {
+  specsymbol = {
     'multiply': String.fromCharCode(215),
     'divide': String.fromCharCode(247),
   }
@@ -57,7 +62,9 @@ class Calculator extends Component {
     if (output === 'error') {
       output = '0';
     }
-    if (/[1-9]/.test(symbol) && /(.*[+\-\*\/]|^)0$/.test(this.expression)) {//remove zero
+    if (/\d/.test(symbol) &&  /-?\d+(?:\.\d+)?/.test(this.expression)) {
+
+    } else if (/[1-9\-]/.test(symbol) && /(.*[+\-\*\/]|^)0$/.test(this.expression)) {//remove zero
       this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
       output = output.slice(0, output.length - 1) + symbol;
     } else if (symbol == '.' && /.*[+\-\*\/]$/.test(this.expression)) { //insert zero before decimal
@@ -66,7 +73,7 @@ class Calculator extends Component {
     } else if (/[+\-\*\/]/.test(symbol) && /.*[+\-\*\/]$/.test(this.expression)) { //replace arithmetic signs
       this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
       if (key === 'multiply' || key === 'divide') {
-        output = output.slice(0, output.length - 1) + this.specsign[key];
+        output = output.slice(0, output.length - 1) + this.specsymbol[key];
         
       } else {
         output = output.slice(0, output.length - 1) + symbol;
@@ -75,7 +82,7 @@ class Calculator extends Component {
       if (this.isValid(this.expression, symbol)) {
         this.expression += symbol; 
         if (key === 'multiply' || key === 'divide') {
-          output += this.specsign[key];
+          output += this.specsymbol[key];
         } else {
           output += symbol;
         }
@@ -91,15 +98,23 @@ class Calculator extends Component {
   }
 
   compute = () => {
-    const expressionRoot = this.parse(this.expression);
+    try {
+      const expressionRoot = this.parse(this.expression);
+      let result = this.getResult(expressionRoot).toString();
+      if (result === 'error') {
+        this.expression = '0';
+      } else {
 
-    const result = this.getResult(expressionRoot);
-    if (result == 'error') {
-      this.expression = '0';
-    } else {
-      this.expression = result;
+        this.expression = result;
+        if (result.length > 17) {
+          result = Number.parseFloat(result).toExponential(7);
+        }
+      }
+      this.setState({output: result});
+    } catch(e) {
+
+      this.alert();
     }
-    this.setState({output: result});
   }
 
 
@@ -112,8 +127,6 @@ class Calculator extends Component {
    } 
    */
   parse(expression) {
-    const re = /\d+(?:\.\d+)?/g;
-
     const treeNode = function(value) {
       this.value = value;
       this.type = null;
@@ -122,6 +135,7 @@ class Calculator extends Component {
     }
 
     const tree = {
+
       root: null,
 
       insertNumber: function(num) {
@@ -160,25 +174,34 @@ class Calculator extends Component {
       },
     }
 
+    const re = /\d+(?:\.\d+)?/g;
     let token;
-
+    if (expression.charAt(re.lastIndex) === '-') { //expression starts with minus
+      tree.insertNumber(0);
+      tree.insertAction('-');
+    }
     while ((token = re.exec(expression)) !== null) {
       const currentNumber = Number(token);
+
       if (Number.isNaN(currentNumber)) {
+
         throw 'invalid operation';
       }
       tree.insertNumber(currentNumber);
       if (re.lastIndex === expression.length) {
-        return tree.root;
+        break;
       }
       const symbol = expression.charAt(re.lastIndex);
       tree.insertAction(symbol);
+    }
+    if (re.lastIndex < expression.length) {
+
+      throw 'invalid operation';
     }
     return tree.root;
   }
 
   getResult(root) {
-
     const result = (function getValue(node) {
       if (node.type === 'number') {
         return node.value;
@@ -217,16 +240,24 @@ class Calculator extends Component {
     return result;
   }
 
+  alert() {
+    this.setState({alert: true}, () => {
+      setTimeout(() => this.setState({
+        alert: false
+      }), 300);
+    })
+  }
+
   isValid(expression, symbol) {
     const re = /^-?(0|[1-9]\d*)(\.\d*)?([+\-\*\/](?=$|(0|[1-9]\d*)(\.\d*)?)((0|[1-9]\d*)(\.\d*)?)?)*$/;
     const checkExpression = expression + symbol;
     return re.test(checkExpression);
   }
 
-  renderButton(type) {
+  renderButton = (type) => {
     let {key, symbol, action} = this.button[type];
     if (key === 'multiply' || key === 'divide') {
-      symbol = this.specsign[key];
+      symbol = this.specsymbol[key];
     }
     return (
       <div className="button-wrapper">
@@ -243,7 +274,7 @@ class Calculator extends Component {
     return (
       <div className="case">
         <div className="display-wrapper">
-          <Display output={this.state.output}/>
+          <Display isAlertOn={this.state.alert} output={this.state.output}/>
         </div>
         <div className="controls">
           <div className="row">
