@@ -1,5 +1,6 @@
 import React, {Component, PureComponent} from 'react';
 import ReactDOM from 'react-dom';
+import Big from 'big.js';
 import './scss/main.scss';
 
 class Button extends PureComponent {
@@ -22,10 +23,12 @@ class Calculator extends Component {
 
   state = {
     output: '0',
+    typing: false,
     alert: false,
   }
 
-  expression = '0';
+  expression = '';
+  answer = '';
 
   specsymbol = {
     'multiply': String.fromCharCode(215),
@@ -49,7 +52,7 @@ class Calculator extends Component {
     multiply: this.createControl('multiply', '*', () => this.handleInput('multiply')),
     divide: this.createControl('divide', '/', () => this.handleInput('divide')),
     equals: this.createControl('equals', '=', () => this.compute()),
-    clear: this.createControl('clear', 'C', () => this.clear()),
+    clear: this.createControl('clear', 'AC', () => this.clear()),
   }
 
   createControl(key, symbol, action) {
@@ -59,60 +62,105 @@ class Calculator extends Component {
   handleInput = (key) => {
     let symbol = this.button[key].symbol;
     let output = this.state.output;
-    if (output === 'error') {
-      output = '0';
-    }
-    if (/\d/.test(symbol) &&  /-?\d+(?:\.\d+)?/.test(this.expression)) {
 
-    } else if (/[1-9\-]/.test(symbol) && /(.*[+\-\*\/]|^)0$/.test(this.expression)) {//remove zero
-      this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
-      output = output.slice(0, output.length - 1) + symbol;
-    } else if (symbol == '.' && /.*[+\-\*\/]$/.test(this.expression)) { //insert zero before decimal
-      this.expression += '0.';
-      output += '0.';
-    } else if (/[+\-\*\/]/.test(symbol) && /.*[+\-\*\/]$/.test(this.expression)) { //replace arithmetic signs
-      this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
-      if (key === 'multiply' || key === 'divide') {
-        output = output.slice(0, output.length - 1) + this.specsymbol[key];
+    if (!this.state.typing) {//new calculation
+      if (/[\d\-]/.test(symbol)) {//replace zero
+        this.expression = symbol;
         
+        output = symbol;
       } else {
-        output = output.slice(0, output.length - 1) + symbol;
-      }
-    } else {
-      if (this.isValid(this.expression, symbol)) {
-        this.expression += symbol; 
+        if (symbol === '.') {
+          this.expression = '0';
+        }
+        this.expression += symbol;
         if (key === 'multiply' || key === 'divide') {
           output += this.specsymbol[key];
         } else {
           output += symbol;
         }
       }
+    } else if (this.answer !== '') {//continue calculation with previous answer
+      if (/(\d|\.)/.test(symbol)) {//start new calculation
+        this.expression = '';
+        if (symbol === '.') {
+          this.expression = '0';
+        }
+        this.expression += symbol;
+        output = symbol;
+      } else {//continue calculation
+        this.expression = this.answer;
+        this.expression += symbol;
+        if (key === 'multiply' || key === 'divide') {
+          output += this.specsymbol[key];
+        } else {
+          output += symbol;
+        }
+      }
+      this.answer = '';
+    } else {//continue calculation
+      if (/[1-9]/.test(symbol) && /.*[+\-\*\/]0$/.test(this.expression)) {//replace zero
+        this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
+        output = output.slice(0, output.length - 1) + symbol;
+      } else if (symbol === '.' && /.*[+\-\*\/]$/.test(this.expression)) { //insert zero before decimal
+        this.expression += '0.';
+        output += symbol;
+      } else if (/[+\-\*\/]/.test(symbol) && /.+[+\-\*\/]$/.test(this.expression)) { //replace arithmetic signs
+        this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
+        if (key === 'multiply' || key === 'divide') {
+          output = output.slice(0, output.length - 1) + this.specsymbol[key];
+        } else {
+          output = output.slice(0, output.length - 1) + symbol;
+        }
+      } else {
+        if (this.isValid(this.expression, symbol)) {
+          this.expression += symbol; 
+          if (key === 'multiply' || key === 'divide') {
+            output += this.specsymbol[key];
+          } else {
+            output += symbol;
+          }
+        }
+      }
     }
-    
-    this.setState({output});
+
+    this.setState({output, typing: true});
   }
 
   clear = () => {
-    this.expression = '0';
-    this.setState({output: '0'});
+    this.expression = '';
+    this.answer = '';
+    this.setState({output: '0', typing: false});
   }
 
   compute = () => {
     try {
       const expressionRoot = this.parse(this.expression);
-      let result = this.getResult(expressionRoot).toString();
+      let result = this.getResult(expressionRoot);
+      let output;
+      let continueOperation = true;
       if (result === 'error') {
-        this.expression = '0';
+        output = 'error';
+        this.answer = '';
+        continueOperation = false;
       } else {
 
-        this.expression = result;
-        if (result.length > 17) {
-          result = Number.parseFloat(result).toExponential(7);
+        this.answer = result;
+        output = result.toString();
+        
+        if (output.length > 17) {
+          output = result.toFixed(11);
+          console.log(output)
+          if (output.length > 17) {
+            console.log(output)
+            output = result.toExponential(7);
+          }
         }
       }
-      this.setState({output: result});
+      this.expression = '';
+        
+      this.setState({output, typing: continueOperation});
     } catch(e) {
-
+      console.log(e)
       this.alert();
     }
   }
@@ -204,7 +252,7 @@ class Calculator extends Component {
   getResult(root) {
     const result = (function getValue(node) {
       if (node.type === 'number') {
-        return node.value;
+        return new Big(node.value);
       }
       const leftValue = getValue(node.left);
       const rightValue = getValue(node.right);
@@ -214,22 +262,22 @@ class Calculator extends Component {
       let res;
       switch (node.value) {
         case '+': {
-          res = leftValue + rightValue;
+          res = leftValue.plus(rightValue);
           break;
         }
         case '-': {
-          res = leftValue - rightValue;
+          res = leftValue.minus(rightValue);
           break;
         }
         case '*': {
-          res = leftValue * rightValue;
+          res = leftValue.times(rightValue);
           break;
         }
         case '/': {
-          if (rightValue === 0) {
+          if (rightValue.eq(0)) {
             res = 'error';
           } else {
-            res = leftValue / rightValue;
+            res = leftValue.div(rightValue);
           }
           
           break;

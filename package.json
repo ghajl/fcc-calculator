@@ -14,7 +14,9 @@
     "> 1%",
     "last 2 versions"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "big.js": "^5.1.2"
+  },
   "devDependencies": {
     "autoprefixer": "8.6.0",
     "babel-core": "^6.26.3",
