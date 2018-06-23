@@ -4,9 +4,12 @@ import Big from 'big.js';
 import './scss/main.scss';
 
 class Button extends PureComponent {
+
   render() {
     return (
-      <button id={this.props.id} className="button" onClick={this.props.handleClick}>{this.props.label}</button>
+      <button id={this.props.id} className={`button ${this.props.className}`} 
+      
+      onClick={this.props.handleClick}><span>{this.props.label}</span></button>
     )
   }
 }
@@ -59,6 +62,40 @@ class Calculator extends Component {
     return {key, symbol, action};
   }
 
+  componentWillMount() {
+      document.addEventListener("keydown", (e) => this.onKeyPressed(e));
+  }
+
+  componentWillUnmount() {
+      document.removeEventListener("keydown", (e) => this.onKeyPressed(e));
+  }      
+
+  onKeyPressed = (e) => {
+    e.preventDefault()
+    const keys = {
+      '0':'zero',
+      '1':'one',
+      '2':'two',
+      '3':'three',
+      '4':'four',
+      '5':'five',
+      '6':'six',
+      '7':'seven',
+      '8':'eight',
+      '9':'nine',
+      '/':'divide',
+      '*':'multiply',
+      '-':'subtract',
+      '+':'add',
+      '.':'decimal',
+      'Enter': 'equals',
+      'Delete': 'clear'
+    }
+    if (typeof keys[e.key] !== 'undefined') {
+      this.button[keys[e.key]].action();
+    }
+  }
+
   handleInput = (key) => {
     let symbol = this.button[key].symbol;
     let output = this.state.output;
@@ -69,10 +106,7 @@ class Calculator extends Component {
         
         output = symbol;
       } else {
-        if (symbol === '.') {
-          this.expression = '0';
-        }
-        this.expression += symbol;
+        this.expression = '0' + symbol;
         if (key === 'multiply' || key === 'divide') {
           output += this.specsymbol[key];
         } else {
@@ -133,6 +167,7 @@ class Calculator extends Component {
   }
 
   compute = () => {
+    
     try {
       const expressionRoot = this.parse(this.expression);
       let result = this.getResult(expressionRoot);
@@ -141,26 +176,24 @@ class Calculator extends Component {
       if (result === 'error') {
         output = 'error';
         this.answer = '';
+        this.expression = '';
+
         continueOperation = false;
       } else {
 
         this.answer = result;
         output = result.toString();
-        
+        this.expression = output
         if (output.length > 17) {
           output = result.toFixed(11);
-          console.log(output)
           if (output.length > 17) {
-            console.log(output)
             output = result.toExponential(7);
           }
         }
       }
-      this.expression = '';
         
-      this.setState({output, typing: continueOperation});
+      this.setState({output, typing: continueOperation}); 
     } catch(e) {
-      console.log(e)
       this.alert();
     }
   }
@@ -183,9 +216,7 @@ class Calculator extends Component {
     }
 
     const tree = {
-
       root: null,
-
       insertNumber: function(num) {
         const newNode = new treeNode(num);
         newNode.type = 'number';
@@ -201,7 +232,6 @@ class Calculator extends Component {
           parent.right = newNode;
         }
       },
-
       insertAction: function(action) {
         const newNode = new treeNode(action);
         newNode.type = 'action';
@@ -228,6 +258,7 @@ class Calculator extends Component {
       tree.insertNumber(0);
       tree.insertAction('-');
     }
+
     while ((token = re.exec(expression)) !== null) {
       const currentNumber = Number(token);
 
@@ -307,12 +338,41 @@ class Calculator extends Component {
     if (key === 'multiply' || key === 'divide') {
       symbol = this.specsymbol[key];
     }
+    let className;
+    switch (type) {
+      case 'clear': 
+        className = 'button-clear';
+        break;
+      case 'zero':
+      case 'one':
+      case 'two':
+      case 'three':
+      case 'four':
+      case 'five':
+      case 'six':
+      case 'seven':
+      case 'eight':
+      case 'nine':
+      case 'decimal':
+        className = 'button-digit';
+        break;
+      case 'divide':
+      case 'multiply':
+      case 'subtract':
+      case 'add':
+        className = 'button-sign';
+        break;
+      case 'equals':
+        className = 'button-equals';
+        break;
+    } 
     return (
       <div className="button-wrapper">
         <Button 
           id={key} 
           label={symbol}
           handleClick={action}
+          className={className}
         />
       </div>
     )
@@ -324,7 +384,7 @@ class Calculator extends Component {
         <div className="display-wrapper">
           <Display isAlertOn={this.state.alert} output={this.state.output}/>
         </div>
-        <div className="controls">
+        <div className="controls-wrapper">
           <div className="row">
             {this.renderButton('clear')}
           </div>  
