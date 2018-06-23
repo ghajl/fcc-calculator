@@ -2,6 +2,8 @@ import React, {Component, PureComponent} from 'react';
 import ReactDOM from 'react-dom';
 import Big from 'big.js';
 import './scss/main.scss';
+import { hydrate, render } from 'react-dom';
+
 
 class Button extends PureComponent {
 
@@ -424,8 +426,16 @@ const Root = (props) => {
   )
 }
 
-ReactDOM.render(
-  <Root 
-    />,
-  document.getElementById('root')
-)
+// ReactDOM.render(
+//   <Root 
+//     />,
+//   document.getElementById('root')
+// )
+
+const rootElement = document.getElementById('root');
+
+if (rootElement.hasChildNodes()) {
+  hydrate(<Root />, rootElement);
+} else {
+  render(<Root />, rootElement);
+}
