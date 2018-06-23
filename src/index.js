@@ -422,7 +422,7 @@ class Calculator extends Component {
 
 const Root = (props) => {
   return (
-  <div className="calc-wrapper"> <Calculator /></div>
+    <Calculator />
   )
 }
 
