@@ -8,19 +8,23 @@ import { hydrate, render } from 'react-dom';
 class Button extends PureComponent {
 
   render() {
+    const {className, ...props} = this.props;
     return (
-      <button id={this.props.id} className={`button ${this.props.className}`} 
-      
-      onClick={this.props.handleClick}><span>{this.props.label}</span></button>
+      <button 
+        className={`button ${this.props.className}`} 
+        {...props}
+      >
+        <span>{this.props.label}</span>
+      </button>
     )
   }
 }
 
 const Display = props => {
   const alert = props.isAlertOn ? 'alert' : '';
-  const classes = `${alert} display`;
+  const className = `${alert} display`;
   return (
-    <div className={classes}><span id="display">{props.output}</span></div>
+    <div className={className}><span id="display">{props.output}</span></div>
   )
 }
 
@@ -39,30 +43,51 @@ class Calculator extends Component {
     'multiply': String.fromCharCode(215),
     'divide': String.fromCharCode(247),
   }
-  
-  button = {
-    zero: this.createControl('zero', '0', () => this.handleInput('zero')),
-    one: this.createControl('one', '1', () => this.handleInput('one')),
-    two: this.createControl('two', '2', () => this.handleInput('two')),
-    three: this.createControl('three', '3', () => this.handleInput('three')),
-    four: this.createControl('four', '4', () => this.handleInput('four')),
-    five: this.createControl('five', '5', () => this.handleInput('five')),
-    six: this.createControl('six', '6', () => this.handleInput('six')),
-    seven: this.createControl('seven', '7', () => this.handleInput('seven')),
-    eight: this.createControl('eight', '8', () => this.handleInput('eight')),
-    nine: this.createControl('nine', '9', () => this.handleInput('nine')),
-    decimal: this.createControl('decimal', '.', () => this.handleInput('decimal')),
-    add: this.createControl('add', '+', () => this.handleInput('add')),
-    subtract: this.createControl('subtract', '-', () => this.handleInput('subtract')),
-    multiply: this.createControl('multiply', '*', () => this.handleInput('multiply')),
-    divide: this.createControl('divide', '/', () => this.handleInput('divide')),
-    equals: this.createControl('equals', '=', () => this.compute()),
-    clear: this.createControl('clear', 'AC', () => this.clear()),
+
+  createButtonObject(symbol, label, type) {
+    return {symbol, label, type};
   }
 
-  createControl(key, symbol, action) {
-    return {key, symbol, action};
+  button = {
+    zero: this.createButtonObject('0', '0', 'digit'),
+    one: this.createButtonObject('1', '1', 'digit'),
+    two: this.createButtonObject('2', '2', 'digit'),
+    three: this.createButtonObject('3', '3', 'digit'),
+    four: this.createButtonObject('4', '4', 'digit'),
+    five: this.createButtonObject('5', '5', 'digit'),
+    six: this.createButtonObject('6', '6', 'digit'),
+    seven: this.createButtonObject('7', '7', 'digit'),
+    eight: this.createButtonObject('8', '8', 'digit'),
+    nine: this.createButtonObject('9', '9', 'digit'),
+    decimal: this.createButtonObject('.', '.', 'digit'),
+    add: this.createButtonObject('+', '+', 'operation'),
+    subtract: this.createButtonObject('-', '-', 'operation'),
+    multiply: this.createButtonObject('*', String.fromCharCode(215), 'operation'),
+    divide: this.createButtonObject('/', String.fromCharCode(247), 'operation'),
+    equals: this.createButtonObject('=', '=', 'equality'),
+    clear: this.createButtonObject('AC', 'AC', 'clear'),
   }
+
+  keys = {
+    '0':'zero',
+    '1':'one',
+    '2':'two',
+    '3':'three',
+    '4':'four',
+    '5':'five',
+    '6':'six',
+    '7':'seven',
+    '8':'eight',
+    '9':'nine',
+    '/':'divide',
+    '*':'multiply',
+    '-':'subtract',
+    '+':'add',
+    '.':'decimal',
+    'Enter': 'equals',
+    'Delete': 'clear'
+  }
+
 
   componentWillMount() {
       document.addEventListener("keydown", (e) => this.onKeyPressed(e));
@@ -74,46 +99,30 @@ class Calculator extends Component {
 
   onKeyPressed = (e) => {
     e.preventDefault()
-    const keys = {
-      '0':'zero',
-      '1':'one',
-      '2':'two',
-      '3':'three',
-      '4':'four',
-      '5':'five',
-      '6':'six',
-      '7':'seven',
-      '8':'eight',
-      '9':'nine',
-      '/':'divide',
-      '*':'multiply',
-      '-':'subtract',
-      '+':'add',
-      '.':'decimal',
-      'Enter': 'equals',
-      'Delete': 'clear'
-    }
-    if (typeof keys[e.key] !== 'undefined') {
-      this.button[keys[e.key]].action();
+    if (typeof this.keys[e.key] !== 'undefined') {
+      if (this.button[this.keys[e.key]].type === 'digit' || this.button[this.keys[e.key]].type === 'operation') {
+        this.handleInput(this.keys[e.key]);
+      } else if (this.button[this.keys[e.key]].type === 'equality') {
+        this.compute();
+      } else {
+        this.clear();
+      }
     }
   }
 
-  handleInput = (key) => {
-    let symbol = this.button[key].symbol;
+  handleInput = (name) => {
+    let symbol = this.button[name].symbol;
+    let label = this.button[name].label;
     let output = this.state.output;
 
     if (!this.state.typing) {//new calculation
       if (/[\d\-]/.test(symbol)) {//replace zero
         this.expression = symbol;
         
-        output = symbol;
+        output = label;
       } else {
         this.expression = '0' + symbol;
-        if (key === 'multiply' || key === 'divide') {
-          output += this.specsymbol[key];
-        } else {
-          output += symbol;
-        }
+        output += label;
       }
     } else if (this.answer !== '') {//continue calculation with previous answer
       if (/(\d|\.)/.test(symbol)) {//start new calculation
@@ -122,39 +131,27 @@ class Calculator extends Component {
           this.expression = '0';
         }
         this.expression += symbol;
-        output = symbol;
+        output = label;
       } else {//continue calculation
         this.expression = this.answer;
         this.expression += symbol;
-        if (key === 'multiply' || key === 'divide') {
-          output += this.specsymbol[key];
-        } else {
-          output += symbol;
-        }
+        output += label;
       }
       this.answer = '';
     } else {//continue calculation
       if (/[1-9]/.test(symbol) && /.*[+\-\*\/]0$/.test(this.expression)) {//replace zero
         this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
-        output = output.slice(0, output.length - 1) + symbol;
+        output = output.slice(0, output.length - 1) + label;
       } else if (symbol === '.' && /.*[+\-\*\/]$/.test(this.expression)) { //insert zero before decimal
         this.expression += '0.';
-        output += symbol;
+        output += label;
       } else if (/[+\-\*\/]/.test(symbol) && /.+[+\-\*\/]$/.test(this.expression)) { //replace arithmetic signs
         this.expression = this.expression.slice(0, this.expression.length - 1) + symbol;
-        if (key === 'multiply' || key === 'divide') {
-          output = output.slice(0, output.length - 1) + this.specsymbol[key];
-        } else {
-          output = output.slice(0, output.length - 1) + symbol;
-        }
+        output = output.slice(0, output.length - 1) + label;
       } else {
         if (this.isValid(this.expression, symbol)) {
           this.expression += symbol; 
-          if (key === 'multiply' || key === 'divide') {
-            output += this.specsymbol[key];
-          } else {
-            output += symbol;
-          }
+          output += label;
         }
       }
     }
@@ -234,15 +231,15 @@ class Calculator extends Component {
           parent.right = newNode;
         }
       },
-      insertAction: function(action) {
-        const newNode = new treeNode(action);
-        newNode.type = 'action';
+      insertOperation: function(operation) {
+        const newNode = new treeNode(operation);
+        newNode.type = 'operation';
         if (this.root === null)  {
           throw 'invalid operation';
         }
         if (
           (this.root.type === 'number')
-          || (action === '+' || action === '-')
+          || (operation === '+' || operation === '-')
           || (this.root.value === '*' || this.root.value === '/')
         ) {
           newNode.left = this.root;
@@ -258,7 +255,7 @@ class Calculator extends Component {
     let token;
     if (expression.charAt(re.lastIndex) === '-') { //expression starts with minus
       tree.insertNumber(0);
-      tree.insertAction('-');
+      tree.insertOperation('-');
     }
 
     while ((token = re.exec(expression)) !== null) {
@@ -273,7 +270,7 @@ class Calculator extends Component {
         break;
       }
       const symbol = expression.charAt(re.lastIndex);
-      tree.insertAction(symbol);
+      tree.insertOperation(symbol);
     }
     if (re.lastIndex < expression.length) {
 
@@ -335,52 +332,56 @@ class Calculator extends Component {
     return re.test(checkExpression);
   }
 
-  renderButton = (type) => {
-    let {key, symbol, action} = this.button[type];
-    if (key === 'multiply' || key === 'divide') {
-      symbol = this.specsymbol[key];
+  renderButton = (name) => {
+    const props = {
+      label: this.button[name].label,
     }
-    let className;
-    switch (type) {
-      case 'clear': 
-        className = 'button-clear';
-        break;
-      case 'zero':
-      case 'one':
-      case 'two':
-      case 'three':
-      case 'four':
-      case 'five':
-      case 'six':
-      case 'seven':
-      case 'eight':
-      case 'nine':
-      case 'decimal':
-        className = 'button-digit';
-        break;
-      case 'divide':
-      case 'multiply':
-      case 'subtract':
-      case 'add':
-        className = 'button-sign';
-        break;
-      case 'equals':
-        className = 'button-equals';
-        break;
-    } 
+
+    if (this.button[name].type === 'digit' || this.button[name].type === 'operation') {
+      props.onClick = () => this.handleInput(name);
+      if (this.button[name].type === 'digit') {
+        props.className = 'button-digit';
+      } else {
+        props.className = 'button-operation';
+      }
+    } else if (this.button[name].type === 'equality') {
+      props.onClick = () => this.compute();
+      props.className = 'button-equals';
+    } else {
+      props.onClick = () => this.clear();
+      props.className = 'button-clear';
+    }
+
     return (
-      <div className="button-wrapper">
+      <div key={name} className="button-wrapper">
         <Button 
-          id={key} 
-          label={symbol}
-          handleClick={action}
-          className={className}
+          id={name} 
+          {...props}
         />
       </div>
     )
   }
 
   render() {
+    const buttons = [
+      'clear',
+      'seven',
+      'eight',
+      'nine',
+      'divide',
+      'four',
+      'five',
+      'six',
+      'multiply',
+      'one',
+      'two',
+      'three',
+      'subtract',
+      'zero',
+      'decimal',
+      'equals',
+      'add',
+    ];
     return (
       <div className="case">
         <div className="display-wrapper">
@@ -388,31 +389,19 @@ class Calculator extends Component {
         </div>
         <div className="controls-wrapper">
           <div className="row">
-            {this.renderButton('clear')}
+            {this.renderButton(buttons[0])}
           </div>  
           <div className="row">
-            {this.renderButton('seven')}
-            {this.renderButton('eight')}
-            {this.renderButton('nine')}
-            {this.renderButton('divide')}
+            {buttons.slice(1, 5).map(button => this.renderButton(button))}
           </div>
           <div className="row">
-            {this.renderButton('four')}
-            {this.renderButton('five')}
-            {this.renderButton('six')}
-            {this.renderButton('multiply')}
+            {buttons.slice(5, 9).map(button => this.renderButton(button))}
           </div>
           <div className="row">
-            {this.renderButton('one')}
-            {this.renderButton('two')}
-            {this.renderButton('three')}
-            {this.renderButton('subtract')}
+            {buttons.slice(9, 13).map(button => this.renderButton(button))}
           </div>
           <div className="row">
-            {this.renderButton('zero')}
-            {this.renderButton('decimal')}
-            {this.renderButton('equals')}
-            {this.renderButton('add')}
+            {buttons.slice(13).map(button => this.renderButton(button))}
           </div>                              
         </div>
       </div>
@@ -420,22 +409,10 @@ class Calculator extends Component {
   }
 }
 
-const Root = (props) => {
-  return (
-    <Calculator />
-  )
-}
-
-// ReactDOM.render(
-//   <Root 
-//     />,
-//   document.getElementById('root')
-// )
 
 const rootElement = document.getElementById('root');
-
 if (rootElement.hasChildNodes()) {
-  hydrate(<Root />, rootElement);
+  hydrate(<Calculator />, rootElement);
 } else {
-  render(<Root />, rootElement);
+  render(<Calculator />, rootElement);
 }
