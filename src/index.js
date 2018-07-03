@@ -39,11 +39,6 @@ class Calculator extends Component {
   expression = '';
   answer = '';
 
-  specsymbol = {
-    'multiply': String.fromCharCode(215),
-    'divide': String.fromCharCode(247),
-  }
-
   createButtonObject(symbol, label, type) {
     return {symbol, label, type};
   }
@@ -111,8 +106,7 @@ class Calculator extends Component {
   }
 
   handleInput = (name) => {
-    let symbol = this.button[name].symbol;
-    let label = this.button[name].label;
+    const {symbol, label} = this.button[name];
     let output = this.state.output;
 
     if (!this.state.typing) {//new calculation
